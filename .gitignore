@@ -1,0 +1,18 @@
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.toc
+*.synctex.gz
+build*.log
+
+# OS
+.DS_Store
+
+# Claude Code local context (not part of the published artifact)
+CLAUDE.md
+.claude/

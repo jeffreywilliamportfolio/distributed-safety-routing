@@ -1,0 +1,27 @@
+{
+  "upload_type": "publication",
+  "publication_type": "preprint",
+  "title": "No Single Safety Gate: Distributed Routing of Harm-Refusal in a Mixture-of-Experts Language Model",
+  "version": "1.0",
+  "language": "eng",
+  "license": "cc-by-4.0",
+  "access_right": "open",
+  "creators": [
+    {
+      "name": "Shorthill, Jeffrey W.",
+      "affiliation": "Independent researcher",
+      "orcid": "0009-0004-3954-2752"
+    }
+  ],
+  "keywords": [
+    "mixture-of-experts",
+    "expert routing",
+    "refusal",
+    "AI safety",
+    "mechanistic interpretability",
+    "distributed representation",
+    "activation steering"
+  ],
+  "description": "<p><strong>No Single Safety Gate: Distributed Routing of Harm-Refusal in a Mixture-of-Experts Language Model.</strong> Preprint, version 1.0 (June 2026). Not peer reviewed.</p><p>A mixture-of-experts (MoE) language model routes each token to a few experts through a discrete, inspectable router, which makes it natural to ask whether harm-refusal is owned by a single &ldquo;safety expert.&rdquo; We probe this in the base Qwen3.5-35B-A3B model (40 layers, 256 experts, top-8) with router capture at every layer under greedy decoding. On token-matched redflag versus benign prompts, the generation-side routing difference is led by one expert (173 at layer 25), but a finance-versus-consequence control shows the broader signal is a real-world-consequence and professional-duty cluster, separable from finance-domain experts. Suppressing expert 173 with a router bias swept over five levels collapses its routed mass dose-dependently (selection rate 0.81 to 0.05), yet the model never produces a harmful completion on this prompt set: routing reallocates to sibling consequence experts and the refusals persist, becoming more explicit rather than less. In this model and setup, refusal is carried by a distributed expert cluster with no single gate.</p><p><strong>This deposit contains</strong> the paper (LaTeX source and built PDF), a claim-by-claim source index (SOURCES.md), and the supporting data/ directory: the run results and journal, the all-layer A-minus-B routing tables, the per-token decomposition backing the filler-artifact correction, the finance-versus-consequence bucket tables, the expert-173 dose-response tables, the generated openings under suppression, and the prompt sets.</p>",
+  "notes": "Preprint, version 1.0; not peer reviewed. Exploratory mechanistic case study on base Qwen3.5-35B-A3B (Q8_0): n=6 token-matched and n=12 bucketed prompts, single greedy trajectories. Studies refusal using synthetic redflag prompts the model refused at every intervention level; releases the prompts and refusals, not harmful content. Raw router tensors are kept out of version control; the analysis tables substantiate the reported statistics. Written with the intentional, disclosed use of large language models for drafting, organization, and bibliography formatting; the human author verified every value and reference and takes full responsibility for the text."
+}

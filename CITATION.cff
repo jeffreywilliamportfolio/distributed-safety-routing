@@ -1,0 +1,47 @@
+cff-version: 1.2.0
+message: "If you use this work, please cite it as below."
+title: "No Single Safety Gate: Distributed Routing of Harm-Refusal in a Mixture-of-Experts Language Model"
+abstract: >-
+  A mixture-of-experts (MoE) language model routes each token to a few experts
+  through a discrete router, which makes it natural to ask whether harm-refusal is
+  owned by a single "safety expert." We probe this in base Qwen3.5-35B-A3B with
+  all-layer router capture under greedy decoding. The generation-side routing
+  difference on token-matched redflag versus benign prompts is led by one expert
+  (173 at layer 25), but a finance-versus-consequence control shows the broader
+  signal is a real-world-consequence and duty cluster, separable from finance-domain
+  experts. Suppressing expert 173 with a router bias collapses its routed mass
+  dose-dependently, yet the model never produces a harmful completion on the prompt
+  set: routing reallocates to sibling experts and the refusals persist. In this model
+  and setup, refusal is carried by a distributed expert cluster with no single gate.
+  An exploratory case study (n=6 and n=12, single greedy trajectories).
+type: dataset
+authors:
+  - family-names: Shorthill
+    given-names: "Jeffrey W."
+    affiliation: "Independent researcher"
+    email: jws299792@icloud.com
+    orcid: "https://orcid.org/0009-0004-3954-2752"
+version: "1.0"
+date-released: "2026-06-21"
+license: CC-BY-4.0
+url: "https://github.com/jeffreywilliamportfolio/distributed-safety-routing"
+repository-code: "https://github.com/jeffreywilliamportfolio/distributed-safety-routing"
+keywords:
+  - mixture-of-experts
+  - expert routing
+  - refusal
+  - AI safety
+  - mechanistic interpretability
+  - distributed representation
+  - activation steering
+preferred-citation:
+  type: article
+  title: "No Single Safety Gate: Distributed Routing of Harm-Refusal in a Mixture-of-Experts Language Model"
+  authors:
+    - family-names: Shorthill
+      given-names: "Jeffrey W."
+      affiliation: "Independent researcher"
+      orcid: "https://orcid.org/0009-0004-3954-2752"
+  year: 2026
+  month: 6
+  notes: "Preprint, version 1.0. Not peer reviewed."

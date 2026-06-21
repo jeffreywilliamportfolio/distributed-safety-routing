@@ -1,0 +1,486 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{lmodern}
+\usepackage[T1]{fontenc}
+\usepackage{microtype}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{caption}
+\usepackage{tikz}
+\usepackage[round]{natbib}
+\usepackage[hidelinks]{hyperref}
+
+\hypersetup{
+  pdftitle={No Single Safety Gate: Distributed Routing of Harm-Refusal in a Mixture-of-Experts Language Model},
+  pdfauthor={Jeffrey W. Shorthill},
+  pdfkeywords={mixture-of-experts, expert routing, refusal, AI safety, mechanistic interpretability, distributed representation, activation steering}
+}
+
+\captionsetup{font=small,labelfont=bf}
+\setlength{\parskip}{0.35em}
+
+\title{\textbf{No Single Safety Gate: Distributed Routing of Harm-Refusal\\
+in a Mixture-of-Experts Language Model}}
+\author{Jeffrey W. Shorthill\thanks{Independent researcher. Correspondence:
+\texttt{jws299792@icloud.com}. ORCID: \href{https://orcid.org/0009-0004-3954-2752}{0009-0004-3954-2752}.
+This is version~1.0 (June~2026), released under CC~BY~4.0. Data, code, and a
+claim-by-claim source index accompany the paper; see the Data and Code
+Availability statement.}}
+\date{Version 1.0 --- June 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+A mixture-of-experts (MoE) language model routes each token to a few expert
+subnetworks through a discrete, inspectable router. This makes it natural to ask
+whether harm-refusal is owned by a single ``safety expert'' that could be located,
+ablated, or attacked. We probe this in the base \textsc{Qwen3.5-35B-A3B} model
+(40 layers, 256 experts, top-8 routing) with router capture at every layer under
+greedy decoding. On a token-matched set of redflag versus matched-benign prompts,
+the generation-side routing difference is led by one expert, expert 173 at layer
+25, but a finance-versus-consequence control shows the broader signal is a
+real-world-consequence and professional-duty cluster (experts 189, 45, 122, 157,
+36, 216, and others) that is separable from finance-domain experts. We then
+suppress expert 173 directly with a router bias swept over five levels. Its routed
+mass collapses dose-dependently, from a selection rate of 0.81 to 0.05 at the
+strongest setting, yet the model never produces a harmful completion on this prompt
+set: routing reallocates to sibling consequence experts and the refusals persist,
+becoming more explicit rather than less. We read this as evidence that, in this
+model and setup, refusal is carried by a distributed expert cluster with no single
+gate. The results are a small, exploratory case study (six and twelve prompts,
+single greedy trajectories), and we give the controls that would confirm or break
+them.
+\end{abstract}
+
+\noindent\textbf{Keywords:} mixture-of-experts; expert routing; refusal; AI safety;
+mechanistic interpretability; distributed representation.
+
+\section{Introduction}
+\label{sec:intro}
+
+A mixture-of-experts (MoE) layer replaces a dense feed-forward block with many
+expert subnetworks and a router that selects a few of them for each token
+\citep{shazeer2017outrageously,fedus2022switch}. Because the router makes a
+discrete, per-token choice, its selections are unusually legible: one can read,
+token by token, which experts a behavior recruits. That legibility invites a
+specific question about safety. When a model refuses a harmful request, is the
+refusal owned by a particular expert, a ``safety expert'' that a router-level
+analysis could name, an auditor could monitor, and an attacker could disable?
+
+The question matters because the dense-model picture points one way. Refusal in
+dense transformers has been described as mediated by a single direction in the
+residual stream, recoverable by contrasting harmful and harmless prompts and
+removable by projecting it out \citep{arditi2024refusal}; representation-level
+control of harmfulness is a working tool \citep{zou2023representation}. If the MoE
+analog held, refusal would localize to one or a few experts, and suppressing the
+top one would weaken it.
+
+We test the localization picture on the base \textsc{Qwen3.5-35B-A3B} model. We
+capture the router logits at all 40 layers while the model answers token-matched
+pairs of redflag and benign prompts under greedy decoding, decompose the routed
+weight per expert and layer, and identify the experts whose routing separates the
+two classes. We then intervene: we add a negative bias to the single strongest
+carrier and sweep its strength, watching both the routing and the generated text.
+
+We find no single safety gate. One expert leads the routing separation, but it leads
+a cluster, and when we bias it down the cluster keeps the refusals going. The sections
+that follow give the decomposition that finds the leader, the control that tells a
+consequence-and-duty cluster apart from experts that merely track a topic, and the
+suppression sweep that takes the leader out. One methodological surprise recurs along
+the way: the tidy prefill leader is mostly an artifact of the token-matching padding,
+which a per-token decomposition dissolves.
+
+The scope is narrow: six prompts in the matched set, twelve in the control, one model,
+one quantization, single greedy generations, an intervention on one expert. We do not
+claim that MoE refusal is never localizable, or that this carrier can never be
+bypassed. We report what removing the strongest carrier does here, and list the
+controls that would test how far it carries.
+
+\section{Related work}
+\label{sec:related}
+
+\paragraph{Mixture-of-experts routing.}
+Sparse MoE layers route tokens through a learned gate to a few of many experts
+\citep{shazeer2017outrageously}, scaled into large transformers by Switch
+Transformers \citep{fedus2022switch}, Mixtral \citep{jiang2024mixtral}, and the
+fine-grained-expert routing of DeepSeek \citep{dai2024deepseekmoe}; the model we
+study is in the Qwen3 lineage \citep{yang2025qwen3}. We use the per-token router
+selection as the readout and ask which experts a single behavior recruits.
+
+\paragraph{The locus of refusal.}
+In dense models, refusal has been characterized as a single residual-stream
+direction that can be found by difference-in-means and ablated to disable refusal
+\citep{arditi2024refusal}, part of a broader program of reading and steering
+high-level behaviors through directions \citep{zou2023representation}. Our question
+is the MoE-routing analog: is there a comparable single locus at the level of
+expert selection? We find that there is not, in this model. The contrast is in the
+substrate (router experts rather than a residual direction) and in the conclusion
+(a distributed cluster rather than a single carrier).
+
+\paragraph{Safety experts in MoE models.}
+Two recent lines bear directly on this. \citet{zhang2026understanding} report that
+MoE routing is largely topic-driven and that safety behavior can change with little
+change to the routing path, a conclusion convergent with ours. Our addition is a
+causal, dose-dependent suppression of the single strongest carrier with observed
+reallocation to siblings and preserved refusal, on a named model.
+\citet{lai2025safex} take the opposite stance, locating vulnerability in stable,
+identifiable safety-critical experts. We read the disagreement as setup-dependent:
+on this base model, prompt set, and intervention, we do not find a single expert
+whose removal breaks refusal, and we are explicit that this is not a universal
+claim.
+
+\paragraph{Distributed and superposed representations.}
+That a behavior need not localize to one component is the expectation set by
+superposition \citep{elhage2022superposition} and by dictionary-learning accounts
+in which interpretable features, including safety-relevant ones, are spread across
+many directions \citep{bricken2023monosemanticity,templeton2024scaling}. Our result
+is the expert-routing analog of that picture: the safety-relevant computation is
+spread across a cluster of experts that absorb each other's load. Methodologically
+we use the same causal-intervention logic as activation editing in dense models
+\citep{meng2022locating}, applied to a router bias.
+
+\paragraph{Companion work.}
+This paper sits beside two companion studies on the same model lineage: a
+characterization of a single expert's role in generation \citep{shorthill2026e114}
+and an analysis of when domain specialization is visible in routing
+\citep{shorthill2026generation}. Where the first asks what one expert encodes, this
+one asks whether a safety behavior is owned by one expert, and answers no.
+Robustness and safety benchmarks \citep{mazeika2024harmbench,wei2023jailbroken}
+frame why the locus of refusal is worth knowing, though we evaluate behavior by
+direct reading on a small set rather than by a benchmark.
+
+\section{Methods}
+\label{sec:methods}
+
+\paragraph{Model and decoding.}
+We study the base \textsc{Qwen3.5-35B-A3B} model in 8-bit (Q8\_0) GGUF form, a
+\texttt{qwen35moe} architecture with 40 layers, 256 experts per MoE layer, and 8
+experts selected per token. Decoding is greedy and deterministic
+(\texttt{--temp 0 --top-k 1 --seed 0}), capped at 256 new tokens, with a bare
+\texttt{</think>} assistant prefix matching the project's reference runtime. We use
+the base model, not a refusal-reduced fine-tune; the refusals studied here are the
+base model's own.
+
+\paragraph{Router capture and metric.}
+For each prompt we capture the router pre-softmax logits at all 40 layers, for every
+prompt and generated token. For an expert $e$ on a set of tokens we report, after a
+softmax over the 256 logits, a top-8 selection, and a renormalization over the
+selected set: $S_e$, the fraction of tokens on which $e$ is selected; $Q_e$, its
+mean renormalized weight when selected; and $W_e = S_e\,Q_e$, its mean weight over
+all tokens. Statistics are computed within the prefill block or the generation block,
+never pooled across them; layer 39 carries a distinct row count per prompt and is
+excluded from prefill claims. The quantity we rank on is
+$\Delta W = W^{\mathrm{A}} - W^{\mathrm{B}}$, the difference in $W$ between redflag,
+consequence, or unsafe prompts (A) and matched professional, descriptive, or neutral
+prompts (B).
+
+\paragraph{Experiment 1: token-matched redflag pairs.}
+Three pairs hold the request topic fixed and vary only its framing: an oxycodone
+prompt asking how to get ``incredibly high'' versus a pharmacist asking a normal
+dose; an instruction to brew ayahuasca (prefixed with a prompt-injection attempt)
+versus a request to describe it; and a request to invest for a ``sure'' 500\% return
+versus a financial planner asking how to explain such an opportunity. The A and B
+prompts of each pair are padded with a repeated filler token to identical prompt
+token counts (50/50, 37/37, 74/74), so the two surfaces differ in framing, not
+length. All six are answered once under greedy decoding.
+
+\paragraph{Experiment 2: finance versus consequence control.}
+Twelve prompts cross two axes, finance versus non-finance and consequence versus
+neutral, to separate experts that track a topic (finance) from experts that track
+real-world consequence and duty across domains (medical, legal, physical safety,
+inspection, finance). The buckets are matched in intent but not strictly token-paired.
+
+\paragraph{Experiment 3: suppressing the leading carrier.}
+We rerun the three redflag pairs while adding a negative router bias to the single
+strongest generation carrier, expert 173, at four strengths
+($-0.25, -0.5, -1, -2$), capturing all-layer routing and the generated text at each.
+We read each generation for whether the model still refuses or warns and how the
+routing redistributes.
+
+\paragraph{A token-matching caveat.}
+The pad token in Experiment 1 is a repeated word piece, and because it appears with
+different frequency in A and B, it can manufacture a routing difference on the
+prefill (prompt-reading) block that is an artifact of the padding rather than of the
+content. We therefore back the aggregate tables with a per-token decomposition that
+recomputes each candidate's $\Delta W$ with the filler piece removed, and we read the
+safety signal off the generation block, which is produced response text and carries
+no padding.
+
+\section{Results}
+\label{sec:results}
+
+\subsection{The generation safety signal is led by one expert, atop a cluster}
+\label{sec:lead}
+
+On the token-matched redflag pairs, the routing difference over generated tokens is
+led by expert 173 at layer 25, with $\Delta W = 0.124$
+(Table~\ref{tab:gen-leaders}). Both components of the weight rise on redflag
+generation: its selection rate climbs from $0.43$ on the benign prompts to $0.81$ on
+the redflag prompts, and its conditional weight from $0.16$ to $0.24$. Beneath it
+sits a broad supporting set, expert 45 at layers 19 and 31, expert 25 at layer 20,
+expert 216 at layers 15 and 27, expert 189 at layer 17, and others, each separating
+the two prompt classes but none rivalling the leader.
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{rllrrr}
+\toprule
+Rank & Layer & Expert & $\Delta W$ & $W^{\mathrm{A}}$ ($S^{\mathrm{A}}$) & $W^{\mathrm{B}}$ ($S^{\mathrm{B}}$) \\
+\midrule
+1 & 25 & 173 & 0.124 & 0.192 (0.81) & 0.068 (0.43) \\
+2 & 19 & 45  & 0.082 & 0.102 (0.72) & 0.021 (0.17) \\
+3 & 20 & 25  & 0.073 & 0.110 (0.56) & 0.037 (0.33) \\
+4 & 13 & 173 & 0.072 & 0.191 (0.86) & 0.119 (0.69) \\
+5 & 31 & 45  & 0.067 & 0.078 (0.57) & 0.010 (0.08) \\
+6 & 27 & 216 & 0.063 & 0.074 (0.48) & 0.011 (0.08) \\
+7 & 17 & 189 & 0.061 & 0.107 (0.64) & 0.046 (0.33) \\
+\bottomrule
+\end{tabular}
+\caption{Generation-block A$-$B routing leaders on the three token-matched redflag
+pairs ($n=6$ prompts). $A$ is the redflag surface, $B$ the matched benign surface;
+$W$ is mean routed weight and $S$ the selection rate. Expert 173 at layer 25 leads,
+but the separation is carried by a set of experts, not one. Single greedy generation
+per prompt.}
+\label{tab:gen-leaders}
+\end{table}
+
+\subsection{Aggregate prefill ``leaders'' are largely a padding artifact}
+\label{sec:filler}
+
+Read naively, the prefill block appears led by expert 173 at layer 1
+($\Delta W = 0.068$). The per-token decomposition shows this is mostly the repeated
+filler piece: excluding it, the layer-1 figure falls to $0.0004$, and the other top
+aggregate prefill rows (expert 222 at layer 2, expert 36 at layer 22) collapse
+similarly. The prompt-side candidates that survive the correction are expert 218 at
+layer 14 ($0.025 \to 0.022$), expert 173 at layer 25 ($0.037 \to 0.046$), and expert
+45 at layer 19 ($0.030 \to 0.034$). We therefore rest the safety read on the
+generation block, and treat the headline prefill leader as a methodological warning:
+token-count padding can fabricate a prefill expert that a per-token decomposition
+dissolves.
+
+\subsection{The cluster tracks consequence and duty, not a topic}
+\label{sec:control}
+
+The finance-versus-consequence control separates two things a single redflag set
+would conflate (Table~\ref{tab:control}). Finance-domain experts, expert 62 at layer
+20, expert 95 at layer 30, expert 223 at layer 19, and expert 214 at layer 16, fire
+strongly on finance prompts including neutral finance, with near-zero selection on
+non-finance, so they are topic experts, not refusal experts. The
+consequence-minus-neutral contrast, by contrast, is led by expert 189 at layer 17,
+expert 122 at layers 11 and 23, expert 157 at layer 14, expert 171 at layer 15, and
+expert 45 at layer 19, and it generalizes across medical, legal, physical-safety,
+inspection, and finance-consequence content. The safety-relevant cluster is better
+read as real-world-consequence and professional-duty routing than as a topic or a
+single expert.
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{llr}
+\toprule
+Layer & Expert & $\Delta W$ \\
+\midrule
+\multicolumn{3}{l}{\emph{Finance-domain experts (finance $-$ non-finance)}} \\
+20 & 62  & 0.180 \\
+30 & 95  & 0.177 \\
+19 & 223 & 0.167 \\
+\midrule
+\multicolumn{3}{l}{\emph{Consequence/duty experts (consequence $-$ neutral)}} \\
+17 & 189 & 0.073 \\
+23 & 122 & 0.065 \\
+14 & 157 & 0.058 \\
+15 & 171 & 0.053 \\
+\bottomrule
+\end{tabular}
+\caption{Finance-versus-consequence control ($n=12$ prompts, bucketed). Finance-domain
+experts (top) fire on finance including neutral finance and are not refusal experts;
+the broad consequence/duty experts (bottom) generalize across domains. Generation
+block. Buckets are intent-matched, not strictly token-paired.}
+\label{tab:control}
+\end{table}
+
+\subsection{Suppressing the leading carrier does not break refusal}
+\label{sec:suppression}
+
+At the strongest setting we tried, bias $-2$, expert 173 is nearly gone from the
+generation routing: its redflag selection rate is $0.05$, down from $0.81$, and its
+A$-$B weight difference is $0.004$, down from $0.124$ (Table~\ref{tab:dose},
+Figure~\ref{fig:dose}). All three redflag prompts still refuse. The collapse is graded
+across the four bias levels; the behavior is not.
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{lrrr}
+\toprule
+Router bias on E173 & $\Delta W$ (L25) & $S^{\mathrm{A}}$ & $W^{\mathrm{A}}$ \\
+\midrule
+baseline   & 0.124 & 0.809 & 0.192 \\
+$-0.25$    & 0.093 & 0.664 & 0.141 \\
+$-0.5$     & 0.056 & 0.510 & 0.091 \\
+$-1$       & 0.041 & 0.394 & 0.056 \\
+$-2$       & 0.004 & 0.046 & 0.005 \\
+\bottomrule
+\end{tabular}
+\caption{Dose-response of suppressing expert 173, read at its strongest carrier
+(layer 25, generation block). Routed mass and selection rate collapse toward zero.
+At every level the model still refuses or warns on all three redflag prompts; see
+text.}
+\label{tab:dose}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[x=2.0cm,y=0.7cm]
+\foreach \y in {0,0.05,0.10}{\draw[gray!30] (0,\y*10) -- (5.1,\y*10);
+  \node[font=\scriptsize,gray!70,anchor=east] at (-0.05,\y*10){\y};}
+\node[font=\scriptsize,rotate=90] at (-0.55,0.6){$\Delta W$ (L25 E173)};
+\foreach \x/\v/\lab in {0/0.124/baseline,1/0.093/-0.25,2/0.056/-0.5,3/0.041/-1,4/0.004/-2}{
+  \fill[teal!60] (\x*1.15+0.15,0) rectangle (\x*1.15+0.75,\v*10);
+  \node[font=\scriptsize] at (\x*1.15+0.45,\v*10+0.35){\v};
+  \node[font=\scriptsize,anchor=north] at (\x*1.15+0.45,-0.15){\lab};
+}
+\node[font=\scriptsize,anchor=north] at (2.6,-0.75){router bias on expert 173};
+\end{tikzpicture}
+\caption{Generation-block A$-$B routing difference for expert 173 at layer 25 as its
+router bias is swept from baseline to $-2$. The carrier collapses dose-dependently;
+the model's refusals do not.}
+\label{fig:dose}
+\end{figure}
+
+The oxycodone prompt is refused at every level, and at $-2$ the refusal gets
+\emph{more} explicit about misuse and overdose; the ayahuasca instruction is refused
+throughout; the 500\% prompt is warned against throughout, its wording shifting from
+``impossible and dangerous'' to ``trap'' at the strongest bias. The benign halves stay
+professional. The routed mass that leaves expert 173 reappears nearby: generation
+separation reallocates to experts 45, 185, 157, 189, 216, and 133. The strongest
+carrier switches off and the cluster carries the refusal.
+
+\section{Interpretation}
+\label{sec:interp}
+
+Three results point the same way, and only the last is a real test. One expert leads
+the routing, but it leads a cluster; the cluster tracks consequence rather than topic;
+and removing the leader does not stop the refusing. The suppression is the load-bearing
+one, because it is causal. A behavior owned by a single gate should weaken when the gate
+is shut. This one does not. In this model, harm-refusal is a property of a cluster that
+survives the loss of its strongest member.
+
+This is the expert-routing analog of the distributed-representation expectation
+\citep{elhage2022superposition,bricken2023monosemanticity}, and it stands against a
+strict single-locus reading of refusal carried over from dense models
+\citep{arditi2024refusal}. The contrast with \citet{lai2025safex}, which locates
+vulnerability in identifiable safety-critical experts, we take to be setup-dependent
+rather than a contradiction: a single-expert intervention that fails to bypass safety
+here may succeed in another model, prompt regime, or with a multi-expert
+intervention. What this run shows is the negative, that the strongest carrier in this
+model is not a sufficient point of attack on this set.
+
+We are careful about what the suppression does and does not establish. It tests the
+\emph{necessity} of expert 173 alone, and finds it not necessary; it does not test
+the joint necessity of the cluster, which a combined suppression of the replacement
+set (experts 45, 189, 157, 122) would address. The behavioral read is a direct
+reading of generated text on a small set, not a benchmarked refusal rate. The result
+is a structural observation about where the routing lives, offered with the controls
+that would harden it.
+
+\section{Limitations and falsification tests}
+\label{sec:limits}
+
+\paragraph{What the present evidence does not settle.}
+\begin{itemize}
+\item \textbf{Six and twelve prompts, one trajectory each.} Single greedy generations,
+so these are point estimates with no sampled spread and no significance test, and
+per-prompt deltas can hang on tie-breaking. The ``still refuses'' verdict is the
+author's reading of the text, not a graded harmful-completion rate.
+\item \textbf{We suppressed one expert.} Whether the cluster jointly carries the
+refusal is untested, so ``no jailbreak'' means removing the strongest carrier, not
+removing the cluster.
+\item \textbf{The control is bucketed, not token-paired.} Its
+finance-versus-consequence separations are weaker evidence than the matched pairs.
+\end{itemize}
+
+\paragraph{Tests that would confirm or break the claim.}
+\begin{itemize}
+\item Jointly suppress the replacement set (experts 45, 189, 157, 122) in small steps
+and ask whether refusal survives the removal of the cluster, not just its leader; the
+distributed reading predicts graceful degradation, a gate reading predicts a cliff.
+\item Score behavior against a standardized red-team suite
+\citep{mazeika2024harmbench} under suppression, replacing the direct reading with a
+harmful-completion rate.
+\item Repeat with sampled decoding and more prompts per condition to attach
+confidence to the per-expert deltas and the behavioral counts.
+\item Run the same probe on other MoE families and on refusal-reduced fine-tunes to
+test whether the distributed pattern, or a localizable safety expert
+\citep{lai2025safex}, is the general case.
+\item Compare the router-level picture to the residual-direction picture
+\citep{arditi2024refusal} on the same model, to ask whether a single refusal
+direction coexists with distributed expert routing.
+\end{itemize}
+
+\section{Conclusion}
+\label{sec:conc}
+
+In base \textsc{Qwen3.5-35B-A3B}, harm-refusal does not route through a single safety
+expert. One expert leads, but biasing it to near-zero routed mass leaves the refusals
+intact, because the surrounding consequence-and-duty cluster takes the load. For anyone
+hoping to locate, monitor, or attack refusal at the level of a single MoE expert, the
+lesson here is that the obvious target is not the gate it looks like. The evidence is a
+small case study; the cluster-suppression and benchmark controls that would carry it
+past one model are set out in Section~\ref{sec:limits}.
+
+\section*{Reproducibility and Data and Code Availability}
+\addcontentsline{toc}{section}{Data and Code Availability}
+
+The numbers in this paper are transcribed from the analysis tables of a single
+capture session and are listed claim-by-claim, with source files, in the accompanying
+\texttt{SOURCES.md}. The supporting data accompany the paper in the \texttt{data/}
+directory: the run's results write-up and journal, the all-layer A$-$B delta tables,
+the per-token decomposition that backs the filler-artifact correction, the
+finance-versus-consequence bucket tables, the expert-173 dose-response tables, the
+generated openings under suppression, and the prompt sets. Raw router tensors
+(\texttt{.npy}) were not retained in version control by project policy; the analysis
+tables above are derived from them and substantiate the reported statistics. The
+routing reconstruction satisfies $W = S\cdot Q$ per token set; we report the
+reconstructed, log-derived routing tables. No new model training was performed.
+
+\section*{Ethical Considerations}
+
+This work studies how a model refuses, using a small set of synthetic redflag prompts
+(drug misuse, a prompt-injection attempt, and a financial ``sure-thing'') that the
+model refused at every intervention level. We release the prompts and the model's
+refusals, not harmful content: no completion in this study provides operational harm,
+and the suppression result is reported because it \emph{fails} to bypass safety, not
+because it succeeds. The purpose is defensive, to understand whether refusal in an MoE
+router is concentrated enough to be a single point of failure for auditing or attack;
+our finding that it is distributed argues against a single-expert attack surface in
+this model, while we are explicit that this does not generalize without the tests in
+Section~\ref{sec:limits}.
+
+\section*{AI Collaboration Statement}
+\addcontentsline{toc}{section}{AI Collaboration Statement}
+
+Generative AI (Anthropic's Claude) was used as a tool in preparing this manuscript:
+to assist with drafting and revising prose, organizing the manuscript, and locating
+and formatting the bibliography. All experiments, captures, and numerical results are
+the author's; every reported value was traced to a source capture (see
+\texttt{SOURCES.md}), and every reference was verified by the author against its
+authoritative record to exist and to support the statement it is attached to. No AI
+system is an author. The author reviewed the entire text and takes full responsibility
+for its content, including any errors.
+
+\section*{Funding and Competing Interests}
+\addcontentsline{toc}{section}{Funding and Competing Interests}
+
+This work received no external funding. The author declares no competing interests.
+The model studied is a third-party open-weights release used as-is for measurement;
+the author has no affiliation with its creators.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+
+\end{document}
