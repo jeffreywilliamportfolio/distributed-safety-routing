@@ -42,6 +42,9 @@ identifiers:
   - type: doi
     value: "10.5281/zenodo.20786892"
     description: "Version 1.0"
+  - type: doi
+    value: "10.5281/zenodo.22088890"
+    description: "Version 1.2"
 url: "https://github.com/jeffreywilliamportfolio/distributed-safety-routing"
 repository-code: "https://github.com/jeffreywilliamportfolio/distributed-safety-routing"
 keywords:
@@ -62,5 +65,5 @@ preferred-citation:
       orcid: "https://orcid.org/0009-0004-3954-2752"
   year: 2026
   month: 8
-  doi: "10.5281/zenodo.20786891"
+  doi: "10.5281/zenodo.22088890"
   notes: "Preprint, version 1.2 (concept DOI, resolves to the latest version). Not peer reviewed."
