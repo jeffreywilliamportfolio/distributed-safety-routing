@@ -1,19 +1,30 @@
 cff-version: 1.2.0
 message: "If you use this work, please cite it as below."
-title: "No Single Safety Gate: Distributed Routing of Harm-Refusal in a Mixture-of-Experts Language Model"
+title: "Suppressing the Leading Refusal-Associated Expert Index at Every Layer Redistributes Routing and Leaves Refusal Intact in a Mixture-of-Experts Model"
 abstract: >-
-  A mixture-of-experts (MoE) language model routes each token to a few experts
-  through a discrete router, which makes it natural to ask whether harm-refusal is
-  owned by a single "safety expert." We probe this in base Qwen3.5-35B-A3B with
-  all-layer router capture under greedy decoding. The generation-side routing
-  difference on token-matched redflag versus benign prompts is led by one expert
-  (173 at layer 25), but a finance-versus-consequence control shows the broader
-  signal is a real-world-consequence and duty cluster, separable from finance-domain
-  experts. Suppressing expert 173 with a router bias collapses its routed mass
-  dose-dependently, yet the model never produces a harmful completion on the prompt
-  set: routing reallocates to sibling experts and the refusals persist. In this model
-  and setup, refusal is carried by a distributed expert cluster with no single gate.
-  An exploratory case study (n=6 and n=12, single greedy trajectories).
+  In the base Qwen3.5-35B-A3B model (40 layers, 256 experts, top-8 routing),
+  router capture at every layer under greedy decoding on token-matched pairs of
+  harm-eliciting and matched-benign prompts shows the routing difference over
+  generated tokens led by a single expert, expert 173 at layer 25, whose selection
+  rate rises from 0.43 to 0.81. It leads a set of experts that a finance-versus-
+  consequence control identifies as tracking real-world consequence and
+  professional duty across domains, separable from experts that track the finance
+  topic. Suppressing expert index 173 with an additive router bias applied in all
+  40 routers (the unit removed is the 40 experts that share that index, of which
+  the leading expert is one; the readout is at layer 25) swept over four strengths
+  collapses the leading expert's routed mass dose-dependently (selection rate 0.81
+  to 0.05, routing difference 0.124 to 0.004) and produces no harmful completion
+  at any strength: routing reallocates to the other consequence-associated experts
+  and the refusals persist, becoming more explicit. Refusal-associated routing in
+  this model is therefore distributed, and its most active expert, together with
+  every expert sharing its index, is dispensable. The single-component
+  localization of refusal reported for dense models has, at the level of expert
+  selection here, a distributed counterpart, with a direct consequence for
+  practice: monitoring, ablating, or attacking the most active refusal-associated
+  expert alone misses the behavior, and router-level safety auditing and single-
+  expert ablation studies should be read at the level of expert sets. The study is
+  a small case study (six and twelve prompts, single greedy trajectories) and is
+  scoped accordingly.
 type: dataset
 authors:
   - family-names: Shorthill
@@ -21,8 +32,8 @@ authors:
     affiliation: "Independent researcher"
     email: jws299792@icloud.com
     orcid: "https://orcid.org/0009-0004-3954-2752"
-version: "1.0"
-date-released: "2026-06-21"
+version: "1.2"
+date-released: "2026-08-24"
 license: CC-BY-4.0
 identifiers:
   - type: doi
@@ -43,13 +54,13 @@ keywords:
   - activation steering
 preferred-citation:
   type: article
-  title: "No Single Safety Gate: Distributed Routing of Harm-Refusal in a Mixture-of-Experts Language Model"
+  title: "Suppressing the Leading Refusal-Associated Expert Index at Every Layer Redistributes Routing and Leaves Refusal Intact in a Mixture-of-Experts Model"
   authors:
     - family-names: Shorthill
       given-names: "Jeffrey W."
       affiliation: "Independent researcher"
       orcid: "https://orcid.org/0009-0004-3954-2752"
   year: 2026
-  month: 6
-  doi: "10.5281/zenodo.20786892"
-  notes: "Preprint, version 1.0. Not peer reviewed."
+  month: 8
+  doi: "10.5281/zenodo.20786891"
+  notes: "Preprint, version 1.2 (concept DOI, resolves to the latest version). Not peer reviewed."

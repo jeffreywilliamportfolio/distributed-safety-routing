@@ -1,11 +1,13 @@
-# No Single Safety Gate
+# Suppressing the Leading Refusal-Associated Expert Index at Every Layer Redistributes Routing and Leaves Refusal Intact in a Mixture-of-Experts Model
 
-Distributed Routing of Harm-Refusal in a Mixture-of-Experts Language Model — paper source, figures, and reproducibility materials.
+(Version 1.0, June 2026, was titled "No Single Safety Gate: Distributed Routing of Harm-Refusal in a Mixture-of-Experts Language Model"; version 1.1, August 2026, restructured the paper around its single claim; version 1.2, August 2026, restates the unit of intervention: the router bias was applied to expert index 173 in all 40 routers, not to the single expert 173 at layer 25. No value changed in either revision; see `REVISION_v12_20260824.md`.)
+
+Paper source, figures, and reproducibility materials.
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20786891.svg)](https://doi.org/10.5281/zenodo.20786891)
 
 **Author:** Jeffrey W. Shorthill (independent researcher) · `jws299792@icloud.com`
-**Version:** 1.0 (June 2026) · preprint, not peer reviewed
+**Version:** 1.2 (August 2026; v1.1 August 2026; v1.0 June 2026) · preprint, not peer reviewed
 **DOI:** [10.5281/zenodo.20786891](https://doi.org/10.5281/zenodo.20786891) (concept DOI — resolves to the latest version)
 **License:** [CC BY 4.0](LICENSE)
 
@@ -21,13 +23,15 @@ decoding, and find that refusal does **not** route through one gate:
   **expert 173 at layer 25** (ΔW = 0.124), atop a broad supporting cluster.
 - A finance-vs-consequence control separates **topic** experts (finance) from a
   **real-world-consequence / duty** cluster (experts 189, 45, 122, 157, 36, 216, …).
-- Suppressing expert 173 with a router bias (5 levels) collapses its routed mass
-  (selection rate 0.81 → 0.05) but the model **never produces a harmful completion**
-  on this set — routing reallocates to sibling experts and the refusals persist.
+- Suppressing expert index 173 with a router bias applied in **all 40 routers** (four
+  strengths plus baseline; the removed unit is the 40 experts sharing that index, read at
+  layer 25) collapses the leading expert's routed mass (selection rate 0.81 → 0.05) but
+  the model **never produces a harmful completion** on this set — routing reallocates to
+  the rest of the consequence set and the refusals persist. The leading expert was never
+  removed alone; a layer-restricted rerun is the open follow-up.
 
 It is an **exploratory case study** (n = 6 token-matched, n = 12 bucketed; single
-greedy trajectories), and the paper sets out the cluster-suppression and benchmark
-controls that would confirm or break it.
+greedy trajectories) and is scoped accordingly.
 
 ## Repository layout
 
